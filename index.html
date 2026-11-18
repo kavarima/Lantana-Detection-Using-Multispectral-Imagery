@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lantana detection</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #f6f9f7;
+    --panel: #ffffff;
+    --line: #d9e4de;
+    --ink: #1d2b25;
+    --muted: #5f6f67;
+    --accent: #237a53;
+    --accent-hover: #1c6644;
+    --accent-soft: #e9f5ee;
+    --error: #b4372d;
+    --error-soft: #fdf0ee;
+    color-scheme: light;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    display: grid;
+    place-items: center;
+    padding: 24px;
+    font-family: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    color: var(--ink);
+    line-height: 1.5;
+    background-color: var(--paper);
+    /* faint map graticule */
+    background-image:
+      linear-gradient(rgba(35, 122, 83, .06) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(35, 122, 83, .06) 1px, transparent 1px);
+    background-size: 32px 32px;
+  }
+
+  main {
+    width: 100%;
+    max-width: 520px;
+    padding: 32px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+  }
+
+  header { display: flex; gap: 14px; align-items: flex-start; margin-bottom: 24px; }
+  header svg { flex: none; width: 36px; height: 36px; padding: 7px; border-radius: 8px; background: var(--accent-soft); }
+  h1 { margin: 0 0 4px; font-size: 1.375rem; font-weight: 600; letter-spacing: -0.01em; }
+  header p { margin: 0; color: var(--muted); font-size: .9375rem; max-width: 52ch; }
+
+  /* Drop zone */
+  .drop {
+    display: block;
+    padding: 32px 20px;
+    text-align: center;
+    cursor: pointer;
+    border: 1.5px dashed #b4cfc0;
+    border-radius: 10px;
+    background: #fafdfb;
+    transition: background .15s, border-color .15s;
+  }
+  .drop:hover, .drop.over { background: var(--accent-soft); border-color: var(--accent); }
+  .drop:focus-within { outline: 3px solid rgba(35, 122, 83, .35); outline-offset: 2px; }
+  .drop.locked { cursor: default; opacity: .6; pointer-events: none; }
+  .drop input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+  .drop svg { width: 28px; height: 28px; margin-bottom: 8px; }
+  .drop-title { display: block; font-weight: 500; word-break: break-all; }
+  .drop-hint { display: block; margin-top: 2px; font-size: .875rem; color: var(--muted); }
+
+  /* Buttons */
+  .btn {
+    display: block;
+    width: 100%;
+    margin-top: 16px;
+    padding: 12px 16px;
+    font: inherit;
+    font-weight: 500;
+    text-align: center;
+    text-decoration: none;
+    color: #fff;
+    background: var(--accent);
+    border: 0;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background .15s;
+  }
+  .btn:hover { background: var(--accent-hover); }
+  .btn:focus-visible, .link:focus-visible { outline: 3px solid rgba(35, 122, 83, .35); outline-offset: 2px; }
+  .btn:disabled { background: #c5d6cc; cursor: not-allowed; }
+
+  .link {
+    padding: 0;
+    font: inherit;
+    font-size: .9375rem;
+    color: var(--accent);
+    background: none;
+    border: 0;
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+  .links { display: flex; justify-content: space-between; margin-top: 14px; }
+
+  /* Status, result, error */
+  .box { margin-top: 20px; padding: 16px; border-radius: 10px; font-size: .9375rem; }
+  .status { background: var(--accent-soft); }
+  .status p, .result p, .error p { margin: 0 0 10px; }
+  .bar { height: 6px; overflow: hidden; border-radius: 3px; background: #cfe6d9; }
+  .bar i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .2s; }
+  .bar.busy i { width: 35%; animation: slide 1.2s ease-in-out infinite; }
+  @keyframes slide { from { margin-left: -35%; } to { margin-left: 100%; } }
+  @media (prefers-reduced-motion: reduce) { .bar.busy i { animation: none; width: 100%; } }
+
+  .result { background: var(--accent-soft); }
+  .result strong { display: block; margin-bottom: 2px; }
+  .result .btn { margin-top: 12px; }
+
+  .error { background: var(--error-soft); color: var(--error); }
+  .error p { margin: 0; word-break: break-word; }
+</style>
+</head>
+<body>
+
+<main>
+  <header>
+    <svg viewBox="0 0 24 24" fill="none" stroke="#237a53" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M5 19c0-8 6-14 14-14 0 8-6 14-14 14Z"/><path d="M5 19 13 11"/>
+    </svg>
+    <div>
+      <h1>Lantana detection</h1>
+      <p>Upload a multispectral GeoTIFF and download the detected lantana patches as a GeoJSON file.</p>
+    </div>
+  </header>
+
+  <label class="drop" id="drop">
+    <input type="file" id="file" accept=".tif,.tiff">
+    <svg viewBox="0 0 24 24" fill="none" stroke="#237a53" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M12 16V5m0 0L8 9m4-4 4 4M5 19h14"/>
+    </svg>
+    <span class="drop-title" id="drop-title">Drop a .tif file here</span>
+    <span class="drop-hint" id="drop-hint">or click to browse your computer</span>
+  </label>
+
+  <button class="btn" id="run" disabled>Run detection</button>
+
+  <div class="box status" id="status" hidden role="status">
+    <p id="status-text"></p>
+    <div class="bar" id="bar"><i id="fill"></i></div>
+  </div>
+
+  <div class="box result" id="result" hidden>
+    <strong>Detection complete</strong>
+    <p>Your GeoJSON is ready.</p>
+    <a class="btn" id="download" href="#">Download GeoJSON</a>
+    <div class="links">
+      <a class="link" id="summary" href="#" hidden>Download summary (JSON)</a>
+      <button class="link" id="reset" type="button">Process another image</button>
+    </div>
+  </div>
+
+  <div class="box error" id="error" hidden role="alert"><p id="error-text"></p></div>
+</main>
+
+<script>
+  // Change this if your API runs somewhere else.
+  const API = "http://127.0.0.1:8000";
+
+  const $ = (id) => document.getElementById(id);
+  const drop = $("drop"), fileInput = $("file"), runBtn = $("run");
+  const dropTitle = $("drop-title"), dropHint = $("drop-hint");
+  const statusBox = $("status"), statusText = $("status-text"), bar = $("bar"), fill = $("fill");
+  const resultBox = $("result"), downloadLink = $("download"), summaryLink = $("summary");
+  const errorBox = $("error"), errorText = $("error-text");
+
+  let file = null;
+  let running = false;
+
+  const formatSize = (b) => b >= 1e9 ? (b / 1e9).toFixed(2) + " GB" : (b / 1e6).toFixed(1) + " MB";
+
+  function clearMessages() {
+    statusBox.hidden = resultBox.hidden = errorBox.hidden = true;
+  }
+
+  function setRunning(on) {
+    running = on;
+    runBtn.disabled = on || !file;
+    fileInput.disabled = on;
+    drop.classList.toggle("locked", on);
+  }
+
+  function showStatus(text, percent) {
+    statusBox.hidden = false;
+    statusText.textContent = text;
+    bar.classList.toggle("busy", percent == null);
+    if (percent != null) fill.style.width = percent + "%";
+  }
+
+  function showError(message) {
+    statusBox.hidden = true;
+    errorBox.hidden = false;
+    errorText.textContent = message;
+    setRunning(false);
+  }
+
+  function pickFile(f) {
+    if (!f || running) return;
+    if (!/\.tiff?$/i.test(f.name)) {
+      return showError("Choose a .tif or .tiff file.");
+    }
+    file = f;
+    clearMessages();
+    drop.classList.remove("over");
+    dropTitle.textContent = f.name;
+    dropHint.textContent = formatSize(f.size) + ". Click to choose a different file.";
+    runBtn.disabled = false;
+  }
+
+  // Choose a file: click or drag and drop
+  fileInput.addEventListener("change", () => pickFile(fileInput.files[0]));
+  drop.addEventListener("dragover", (e) => { e.preventDefault(); drop.classList.add("over"); });
+  drop.addEventListener("dragleave", () => drop.classList.remove("over"));
+  drop.addEventListener("drop", (e) => { e.preventDefault(); pickFile(e.dataTransfer.files[0]); });
+
+  // Upload
+  runBtn.addEventListener("click", () => {
+    if (!file) return;
+    clearMessages();
+    setRunning(true);
+    showStatus("Uploading… 0%", 0);
+
+    const body = new FormData();
+    body.append("images", file);   // field name expected by the API
+
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", API + "/api/inference");
+    xhr.upload.onprogress = (e) => {
+      if (!e.lengthComputable) return;
+      const p = Math.round((e.loaded / e.total) * 100);
+      showStatus("Uploading… " + p + "%", p);
+    };
+    xhr.upload.onload = () => showStatus("Upload complete. Starting detection…", null);
+    xhr.onerror = () => showError("Cannot reach the server. Check that the API is running at " + API + ".");
+    xhr.onload = () => {
+      let data = {};
+      try { data = JSON.parse(xhr.responseText); } catch (_) {}
+      if (xhr.status === 202) return poll(data.job_id);
+      showError(typeof data.detail === "string" ? data.detail : "Upload failed (HTTP " + xhr.status + ").");
+    };
+    xhr.send(body);
+  });
+
+  // Wait for the result
+  async function poll(jobId) {
+    showStatus("Detecting lantana. Large images can take several minutes.", null);
+    try {
+      const res = await fetch(API + "/api/jobs/" + jobId);
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      const job = await res.json();
+
+      if (job.status === "queued" || job.status === "processing") {
+        return setTimeout(() => poll(jobId), 3000);
+      }
+      const image = job.images[0];
+      if (image.status !== "completed") {
+        return showError((image.error || "Detection failed.").slice(-400));
+      }
+      showResult(image);
+    } catch (err) {
+      showError("Lost connection to the server. If it restarted, upload the image again.");
+    }
+  }
+
+  function showResult(image) {
+    statusBox.hidden = true;
+    resultBox.hidden = false;
+    downloadLink.href = API + image.geojson_url;
+    summaryLink.hidden = !image.summary_url;
+    if (image.summary_url) summaryLink.href = API + image.summary_url;
+    setRunning(false);
+  }
+
+  // Start over
+  $("reset").addEventListener("click", () => {
+    file = null;
+    fileInput.value = "";
+    clearMessages();
+    dropTitle.textContent = "Drop a .tif file here";
+    dropHint.textContent = "or click to browse your computer";
+    runBtn.disabled = true;
+  });
+</script>
+</body>
+</html>
