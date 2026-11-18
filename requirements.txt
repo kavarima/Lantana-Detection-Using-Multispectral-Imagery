@@ -1,0 +1,19 @@
+# Lantana Multispectral Inference API
+# Install with: python -m pip install -r requirements.txt
+
+# API server
+fastapi
+uvicorn[standard]
+python-multipart
+
+# Geospatial raster processing
+rasterio
+shapely
+
+# Numerical and image processing
+numpy
+scipy
+scikit-image
+
+# Deep learning inference
+torch
